@@ -5,6 +5,7 @@ Update the relevant page in the same PR that changes the behaviour it describes.
 
 | Doc                                                                    | Contents                                                                        |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [RUNBOOK.md](./RUNBOOK.md)                                             | How to actually run Pulse locally: infra, env vars, migrations, tests           |
 | [01-requirements.md](./01-requirements.md)                             | Product requirements: goals, scope, functional and non-functional requirements  |
 | [02-technical-plan.md](./02-technical-plan.md)                         | Architecture, data model, API, frontend, reports, testing, sprint plan          |
 | [03-architecture.md](./03-architecture.md)                             | System diagram, modules, data flow (summary; full detail in the technical plan) |
