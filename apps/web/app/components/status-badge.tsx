@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 export type AppStatus = "UP" | "DEGRADED" | "DOWN" | "UNKNOWN";
 
 const LABELS: Record<AppStatus, string> = {

@@ -2,6 +2,7 @@ import type { INestApplication } from "@nestjs/common";
 import type { Server } from "node:http";
 import request from "supertest";
 import { startTestDatabase, type TestDatabase } from "./support/postgres-test-db";
+import { startTestRedis, type TestRedis } from "./support/redis-test-db";
 import { createTestApp } from "./support/test-app";
 
 interface SessionBody {
@@ -17,6 +18,7 @@ interface SessionBody {
  */
 describe("Tenancy — cross-organisation isolation (e2e)", () => {
   let db: TestDatabase;
+  let redis: TestRedis;
   let app: INestApplication;
   let server: Server;
 
@@ -24,6 +26,7 @@ describe("Tenancy — cross-organisation isolation (e2e)", () => {
 
   beforeAll(async () => {
     db = await startTestDatabase();
+    redis = await startTestRedis();
     process.env.JWT_ACCESS_SECRET = "test-secret";
     process.env.PLATFORM_OWNER_EMAIL = platformOwner.email;
     process.env.PLATFORM_OWNER_PASSWORD = platformOwner.password;
@@ -35,6 +38,7 @@ describe("Tenancy — cross-organisation isolation (e2e)", () => {
   afterAll(async () => {
     await app.close();
     await db.stop();
+    await redis.stop();
   }, 60_000);
 
   async function loginAs(email: string, password: string): Promise<string> {

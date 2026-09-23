@@ -37,4 +37,9 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 }
 
-void bootstrap();
+// Guarded so importing this file for `configureApp` alone (every e2e test does, via
+// test/support/test-app.ts) doesn't also boot a second, uncontrolled app against whatever
+// `process.env` happens to hold before the test's own beforeAll has set it.
+if (require.main === module) {
+  void bootstrap();
+}

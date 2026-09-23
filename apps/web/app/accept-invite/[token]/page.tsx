@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth, type SessionResponse } from "../../lib/auth-context";
 import { apiFetch, ApiError } from "../../lib/api-client";

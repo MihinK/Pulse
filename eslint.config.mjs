@@ -34,6 +34,8 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/coverage/**", "**/node_modules/**"],
+    // Plain CommonJS config/helper scripts (e.g. babel.config.cjs, test/babel-transformer.cjs) —
+    // not part of any tsconfig "include", so the type-aware parser can't project them.
+    ignores: ["**/dist/**", "**/.next/**", "**/coverage/**", "**/node_modules/**", "**/*.cjs"],
   },
 );

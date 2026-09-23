@@ -5,6 +5,12 @@ import { Organization } from "./modules/identity/domain/organization.entity";
 import { User } from "./modules/identity/domain/user.entity";
 import { Invitation } from "./modules/identity/domain/invitation.entity";
 import { RefreshToken } from "./modules/identity/domain/refresh-token.entity";
+import { Application } from "./modules/applications/domain/application.entity";
+import { AuthConfig } from "./modules/applications/domain/auth-config.entity";
+import { CheckRun } from "./modules/applications/domain/check-run.entity";
+import { CheckResult } from "./modules/applications/domain/check-result.entity";
+import { OutboxEntry } from "./modules/applications/domain/outbox-entry.entity";
+import { AuditLog } from "./modules/applications/domain/audit-log.entity";
 
 /**
  * A function, not a precomputed constant: `app.module.ts` calls this from inside
@@ -24,7 +30,18 @@ export function buildMikroOrmOptions(user: string, password: string): Options {
     dbName: process.env.DB_NAME ?? "pulse",
     user,
     password,
-    entities: [Organization, User, Invitation, RefreshToken],
+    entities: [
+      Organization,
+      User,
+      Invitation,
+      RefreshToken,
+      Application,
+      AuthConfig,
+      CheckRun,
+      CheckResult,
+      OutboxEntry,
+      AuditLog,
+    ],
     extensions: [Migrator],
     migrations: {
       path: "./src/migrations",

@@ -14,7 +14,7 @@ pnpm --filter @pulse/api test:coverage
 pnpm --filter @pulse/web test:coverage
 
 # API integration/API-level e2e tests (boots a real Nest app in-process against a real
-# Postgres via Testcontainers — requires Docker)
+# Postgres and Redis via Testcontainers — requires Docker)
 pnpm --filter @pulse/api test:e2e
 ```
 
@@ -39,7 +39,14 @@ logic to exercise — including them would pad the denominator without adding a 
 - `**/migrations/**` (schema DDL — no business logic; correctness is proven by running them
   against a real Postgres, see [04-data-model.md](./04-data-model.md), not by unit tests)
 - `**/*.tokens.ts` (DI token constants)
-- `app/layout.tsx`, `app/page.tsx` (framework wiring / not-yet-built placeholder page)
+- `app/layout.tsx`, `app/**/layout.tsx`, `app/page.tsx` (framework wiring / route-segment CSS
+  scoping — see [features/applications-and-url-checks.md](./features/applications-and-url-checks.md)
+  for why sprint 3's pages have their own `layout.tsx`)
+- `components/ui/**` (vendored shadcn/ui primitives — Radix + `class-variance-authority` wiring,
+  not hand-written business logic; same rationale as excluding `*.module.ts`)
+- `test-support/**` in both `apps/api` and `apps/web` (test-only helpers — a Jest/Vitest
+  `moduleNameMapper` mock for ESM-only packages, a `QueryClientProvider` test wrapper — not
+  application code)
 
 Everything else — domain objects, application services, infrastructure adapters, controllers,
 DTOs with mapping logic, React components — is included and tested. When in doubt, the rule is:
@@ -49,7 +56,10 @@ if a file could have a bug, it's in the coverage count.
 *not* part of the coverage numbers above — `test:coverage` only runs `*.spec.ts` unit tests.
 Repository adapters, controllers and DTOs are covered twice, once by unit tests (with fakes/mocks,
 counted in the gate) and once by the e2e suite (against a real, RLS-enforcing Postgres, not
-counted but exercising the real thing) — see `apps/api/test/tenancy.e2e-spec.ts` in particular.
+counted but exercising the real thing) — see `apps/api/test/tenancy.e2e-spec.ts` (cross-org
+isolation) and `apps/api/test/applications-api.e2e-spec.ts` (sprint 3: the same isolation proof
+for applications/runs, plus the outbox → BullMQ → worker pipeline end-to-end against a real Redis
+and a local fixture HTTP server — never the internet) in particular.
 
 ## Test doubles
 

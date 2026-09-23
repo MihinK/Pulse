@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode, type JSX } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, type Role } from "../lib/auth-context";
 

@@ -86,7 +86,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
   ],
   // TOKEN_SERVICE is exported so the globally-registered JwtAuthGuard (in AppModule) can inject
   // it; the RLS-facing EntityManager is exported implicitly by MikroOrmModule.forRoot in
-  // AppModule, which TenancyInterceptor (also global) depends on directly.
-  exports: [TOKEN_SERVICE],
+  // AppModule, which TenancyInterceptor (also global) depends on directly. OrganizationService
+  // and ProfileService are exported so `applications` module controllers can resolve the acting
+  // Organization/User entities from a principal without reaching into identity's repositories
+  // directly — the same encapsulation boundary `refresh_tokens`' RLS policy draws at the SQL
+  // level (transitively through `users`, never touched directly by another module).
+  exports: [TOKEN_SERVICE, OrganizationService, ProfileService],
 })
 export class IdentityModule {}

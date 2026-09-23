@@ -1,9 +1,9 @@
 # Security
 
 Full context: [technical plan](./02-technical-plan.md) section 8.1, requirements section 3.4,
-[ADR-003](./adr/003-multitenancy-row-level-security.md). This page tracks what sprint 2 actually
-implemented: authentication, and multi-tenant isolation. SSRF protection and target-credential
-encryption land with the check engine (sprint 3+).
+[ADR-003](./adr/003-multitenancy-row-level-security.md). This page tracks what's actually
+implemented: sprint 2's authentication and multi-tenant isolation, and sprint 3's SSRF protection
+and target-credential encryption.
 
 ## Authentication
 
@@ -79,15 +79,55 @@ own transaction and sets `app.bypass_rls = true` directly, rather than going thr
 
 ## Roles
 
-`PLATFORM_OWNER` (spans every org, creates orgs), `ADMIN` (manages their org's users/invitations),
-`VIEWER` (read-only within their org). Enforced by two global guards, in order:
+`PLATFORM_OWNER` (spans every org, creates orgs), `ADMIN` (manages their org's users/invitations,
+and — sprint 3 — creates/edits applications and configures their auth), `VIEWER` (read-only within
+their org, plus triggering a manual check). Enforced by two global guards, in order:
 
 1. `JwtAuthGuard` — every route requires a valid access token unless `@Public()`.
 2. `RolesGuard` — no-ops unless a handler carries `@Roles(...)`, in which case it checks the
    principal's role.
 
+## SSRF protection
+
+Every check makes an outbound HTTP request to a URL an Admin supplied (`Application.baseUrl`) —
+exactly the shape of request SSRF defenses exist for (requirements section 3.4). Two pieces, each
+independently testable:
+
+- **`NetworkPolicy`** (`CloudNetworkPolicy`, `apps/api/src/modules/applications/infrastructure/cloud-network-policy.ts`)
+  — a pure function over an *already-resolved* IP: `assertAllowed(ip)` throws for loopback
+  (`127.0.0.0/8`, `::1`), RFC 1918 private ranges, link-local (`169.254.0.0/16`, which includes the
+  `169.254.169.254` cloud metadata address), carrier-grade NAT, multicast, and reserved ranges.
+  Hand-rolled bitwise CIDR checks on Node's built-in `net` module rather than a dependency, so the
+  whole policy is auditable in one file.
+- **`UndiciHttpProbe`** (`apps/api/src/modules/applications/infrastructure/undici-http-probe.ts`)
+  — does the DNS resolution and calls `NetworkPolicy.assertAllowed` on *every* hop, including
+  redirects (it never lets undici auto-follow a redirect): a `baseUrl` that resolves to a public IP
+  but redirects to `http://169.254.169.254/` is blocked on the second hop, not just the first. This
+  is the specific defense against DNS-rebinding-style bypasses — checking only the original
+  hostname, once, before the request is sent, would miss it entirely.
+
+A blocked request surfaces as a normal `FAILED` check result (`failure_reason`: "Address ... is not
+allowed by network policy"), not a 500 — from the caller's point of view it's just a check that
+didn't pass, same as a timeout or a non-2xx response.
+
+## Secret encryption
+
+Auth credentials for a target application (`auth_configs.config_encrypted`) are encrypted with
+AES-256-GCM (`AesGcmSecretCipher`,
+`apps/api/src/modules/applications/infrastructure/aes-gcm-secret-cipher.ts`) before being
+persisted — key from `SECRET_ENCRYPTION_KEY` (env var, hashed to exactly 32 bytes so any
+passphrase length works, never hardcoded — same pattern as `JWT_ACCESS_SECRET`). Ciphertext layout
+is `iv (12 bytes) | authTag (16 bytes) | ciphertext`; a tampered or wrong-key ciphertext fails to
+decrypt rather than silently returning garbage, since GCM's auth tag is checked on decrypt.
+
+Credentials are **never returned by any read endpoint** — `ApplicationResponseDto` and
+`AuthConfigResponseDto` have no field for them at all (not a redaction rule applied at
+serialization time, which could be gotten wrong later) — `GET /applications/:id/auth` returns only
+the configured `type`.
+
 ## What's still a placeholder
 
-SSRF protection (`NetworkPolicy`), target-credential encryption (`SecretCipher`), and the OWASP
-Top 10 pre-release checklist all land with the check engine and secrets storage (sprint 3+) —
-this sprint has no code that makes outbound requests to user-supplied URLs yet.
+`OAUTH2_CC`/`LOGIN_FLOW` auth (the enum values and `token_cache_encrypted` column exist; no
+`AuthStrategy` implementation until sprint 5), and the OWASP Top 10 pre-release checklist
+(technical plan section 8.1) — tracked as a full pass once the write path (write-method
+confirmation, sprint 5) exists to review.

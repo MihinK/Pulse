@@ -144,3 +144,9 @@ vite.config.ts.timestamp-*
 
 # Claude Code project instructions (local-only, not version-controlled)
 CLAUDE.md
+
+# Turborepo cache
+.turbo/
+
+# Local Redis RDB snapshot (created by a bare `redis-server` run outside docker-compose)
+dump.rdb

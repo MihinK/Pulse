@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { AuthGate } from "../components/auth-gate";
 import { useAuth } from "../lib/auth-context";
 import { apiFetch, ApiError } from "../lib/api-client";

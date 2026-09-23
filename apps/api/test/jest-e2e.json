@@ -3,9 +3,14 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "setupFiles": ["<rootDir>/setup-env.ts"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.ts$": "ts-jest",
+    "\\.pnpm/(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config)@.+\\.js$": "<rootDir>/babel-transformer.cjs"
   },
+  "transformIgnorePatterns": [
+    "\\.pnpm/(?!(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config)@)"
+  ],
   "testTimeout": 30000,
   "forceExit": true
 }

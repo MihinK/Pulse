@@ -1,5 +1,6 @@
 "use client";
 
+import type { JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/auth-context";
@@ -22,7 +23,12 @@ export function SiteNav(): JSX.Element {
           {principal.role === "PLATFORM_OWNER" && (
             <Link href="/admin/organizations">Organisations</Link>
           )}
-          {principal.role !== "PLATFORM_OWNER" && <Link href="/organization/users">People</Link>}
+          {principal.role !== "PLATFORM_OWNER" && (
+            <>
+              <Link href="/applications">Applications</Link>
+              <Link href="/organization/users">People</Link>
+            </>
+          )}
           <Link href="/profile">Profile</Link>
           <button
             type="button"

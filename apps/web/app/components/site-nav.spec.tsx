@@ -60,6 +60,7 @@ describe("SiteNav", () => {
 
     expect(screen.getByText("Organisations")).toBeInTheDocument();
     expect(screen.queryByText("People")).not.toBeInTheDocument();
+    expect(screen.queryByText("Applications")).not.toBeInTheDocument();
   });
 
   it("shows People for an org Admin, not Organisations", () => {
@@ -71,6 +72,7 @@ describe("SiteNav", () => {
     render(<SiteNav />);
 
     expect(screen.getByText("People")).toBeInTheDocument();
+    expect(screen.getByText("Applications")).toBeInTheDocument();
     expect(screen.queryByText("Organisations")).not.toBeInTheDocument();
   });
 

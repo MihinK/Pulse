@@ -19,6 +19,11 @@ import { Public } from "../../../common/auth/public.decorator";
 import { TenancyInterceptor } from "../../../common/auth/tenancy.interceptor";
 import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, extractRefreshCookie, setRefreshCookie } from "./refresh-cookie";
 
+// Brute-force defense on login specifically — read at module-load time (decorator arguments
+// can't use Nest's DI/ConfigService) so e2e suites can raise it via `LOGIN_THROTTLE_LIMIT`
+// before this module loads; production always gets the secure default of 5.
+const LOGIN_THROTTLE_LIMIT = Number(process.env.LOGIN_THROTTLE_LIMIT ?? "5");
+
 @ApiTags("auth")
 @Controller("auth")
 @UseInterceptors(TenancyInterceptor)
@@ -26,7 +31,7 @@ export class AuthController {
   public constructor(private readonly authService: AuthService) {}
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_THROTTLE_LIMIT, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("login")
   public async login(

@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { AuthProvider, useAuth } from "./auth-context";

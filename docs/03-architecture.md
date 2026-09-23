@@ -1,4 +1,4 @@
-# Architecture (sprint 2 snapshot)
+# Architecture (sprint 3 snapshot)
 
 Full architecture detail lives in the [technical plan](./02-technical-plan.md), section 2. This
 page tracks what's actually built so far.
@@ -8,8 +8,8 @@ page tracks what's actually built so far.
 ```
 pulse/
 ├── apps/
-│   ├── api/          # NestJS API — health module + identity/tenancy (sprint 2)
-│   └── web/          # Next.js frontend — auth pages, platform admin, org people (sprint 2)
+│   ├── api/          # NestJS API + worker (in-process) — health, identity/tenancy, applications/checks
+│   └── web/          # Next.js frontend — auth pages, platform admin, org people, applications/runs
 ├── packages/
 │   └── shared/        # Clock, Formatter, shared enums — used by both apps
 ├── docs/               # this folder
@@ -56,7 +56,37 @@ future module (applications, checks, reports) will need them too: `JwtAuthGuard`
 (both registered globally), and `TenancyInterceptor` (the Row-Level-Security session-variable
 wrapper, applied per-controller — see [07-security.md](./07-security.md)).
 
+## The applications module (sprint 3)
+
+`apps/api/src/modules/applications/` — full detail in [04-data-model.md](./04-data-model.md),
+[07-security.md](./07-security.md), and
+[features/applications-and-url-checks.md](./features/applications-and-url-checks.md):
+
+```
+apps/api/src/modules/applications/
+├── domain/           # Application, AuthConfig, CheckRun, CheckResult, OutboxEntry, AuditLog (MikroORM entities — ADR-002)
+├── application/       # ApplicationService, AuthConfigService, RunService, RunCheckService, and their ports/
+├── infrastructure/    # AesGcmSecretCipher, CloudNetworkPolicy, UndiciHttpProbe, auth strategies, BullMqQueue, OutboxRelay, RunCheckProcessor, MikroORM repo adapters
+└── presentation/       # ApplicationsController, ApplicationRunsController, RunsController
+```
+
+The one architectural piece this module adds that identity didn't need: a **worker**, running
+in-process alongside the API rather than as a separate deployable (technical plan section 2.3
+allows either; the whole check workload is light enough this sprint that a separate process would
+be premature). `OutboxRelay` (an `@Interval` poller) and `RunCheckProcessor` (a BullMQ
+`@Processor`) both run inside the same Nest application as every controller — see
+[04-data-model.md](./04-data-model.md#row-level-security-adr-003) for how they get RLS-safe
+database access despite having no HTTP request to hang a `TenancyInterceptor` off.
+
+`ApplicationService`/`AuthConfigService`/`RunService`/`RunCheckService` depend only on ports
+(`ApplicationRepository`, `SecretCipher`, `NetworkPolicy`, `HttpProbe`, `Queue`, `AuthStrategy`) —
+never on MikroORM, undici, or BullMQ directly. A new auth strategy or a new report exporter later
+is a new `infrastructure/` class registered in `applications.module.ts`, not a change to any of
+those four services (Open/Closed) — the exact same shape the [health module](#the-health-module-as-a-worked-example-of-the-layering)
+demonstrates at a smaller scale.
+
 ## What's still a placeholder
 
-Everything not yet listed above — applications, API documents, the check engine, reports,
-scheduling, alerts — lands sprint 3 onward per the [technical plan's sprint plan](./02-technical-plan.md#9-sprint-plan).
+API documents, endpoint checks, `OAUTH2_CC`/`LOGIN_FLOW` auth, write-method confirmation,
+scheduled execution, reports, alerts — lands sprint 4 onward per the
+[technical plan's sprint plan](./02-technical-plan.md#9-sprint-plan).

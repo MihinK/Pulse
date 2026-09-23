@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import type { ReactNode, JSX } from "react";
 import "./globals.css";
 import { AuthProvider } from "./lib/auth-context";
+import { QueryProvider } from "./lib/query-provider";
 import { SiteNav } from "./components/site-nav";
 
 export const metadata: Metadata = {
@@ -13,10 +14,12 @@ export default function RootLayout({ children }: { children: ReactNode }): JSX.E
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <SiteNav />
-          {children}
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <SiteNav />
+            {children}
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
