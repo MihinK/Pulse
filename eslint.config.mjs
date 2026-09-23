@@ -22,6 +22,18 @@ export default tseslint.config(
     },
   },
   {
+    // Test doubles routinely implement an async interface without every branch needing an
+    // `await` (e.g. a fake repository's `save()` just resolving immediately), and Jest's
+    // `expect(mock.method).toHaveBeenCalledWith(...)` pattern inherently takes a detached
+    // reference to a method — the `this`-binding hazard `unbound-method` guards against in
+    // production code doesn't apply to a jest.fn() being handed to an assertion.
+    files: ["**/*.spec.ts", "**/*.spec.tsx", "**/*.e2e-spec.ts"],
+    rules: {
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
     ignores: ["**/dist/**", "**/.next/**", "**/coverage/**", "**/node_modules/**"],
   },
 );

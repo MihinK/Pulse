@@ -1,6 +1,6 @@
 # ADR-002: MikroORM for the Unit-of-Work / ACID transaction pattern
 
-**Status:** Accepted (sprint 1, implementation lands sprint 2)
+**Status:** Implemented (accepted sprint 1, landed sprint 2 — see [04-data-model.md](../04-data-model.md))
 
 ## Context
 

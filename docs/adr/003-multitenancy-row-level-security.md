@@ -1,6 +1,6 @@
 # ADR-003: Row-Level Security for multi-tenant isolation
 
-**Status:** Accepted (sprint 1, implementation lands sprint 2)
+**Status:** Implemented (accepted sprint 1, landed sprint 2 — see [07-security.md](../07-security.md))
 
 ## Context
 

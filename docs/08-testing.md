@@ -13,7 +13,8 @@ pnpm --filter @pulse/shared test:coverage
 pnpm --filter @pulse/api test:coverage
 pnpm --filter @pulse/web test:coverage
 
-# API end-to-end tests (boots a real Nest app in-process)
+# API integration/API-level e2e tests (boots a real Nest app in-process against a real
+# Postgres via Testcontainers — requires Docker)
 pnpm --filter @pulse/api test:e2e
 ```
 
@@ -34,12 +35,21 @@ logic to exercise — including them would pad the denominator without adding a 
 
 - `*.module.ts` (NestJS module wiring — declarative DI registration)
 - `main.ts` (bootstrap — calling `NestFactory.create` etc.)
+- `mikro-orm.config.ts` (CLI/connection config — same rationale as `main.ts`)
+- `**/migrations/**` (schema DDL — no business logic; correctness is proven by running them
+  against a real Postgres, see [04-data-model.md](./04-data-model.md), not by unit tests)
 - `**/*.tokens.ts` (DI token constants)
 - `app/layout.tsx`, `app/page.tsx` (framework wiring / not-yet-built placeholder page)
 
 Everything else — domain objects, application services, infrastructure adapters, controllers,
 DTOs with mapping logic, React components — is included and tested. When in doubt, the rule is:
 if a file could have a bug, it's in the coverage count.
+
+**Note:** `apps/api/test/*.e2e-spec.ts` (integration and API-level tests, run via `test:e2e`) are
+*not* part of the coverage numbers above — `test:coverage` only runs `*.spec.ts` unit tests.
+Repository adapters, controllers and DTOs are covered twice, once by unit tests (with fakes/mocks,
+counted in the gate) and once by the e2e suite (against a real, RLS-enforcing Postgres, not
+counted but exercising the real thing) — see `apps/api/test/tenancy.e2e-spec.ts` in particular.
 
 ## Test doubles
 

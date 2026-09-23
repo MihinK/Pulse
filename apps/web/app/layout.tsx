@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
+import { AuthProvider } from "./lib/auth-context";
+import { SiteNav } from "./components/site-nav";
 
 export const metadata: Metadata = {
   title: "Pulse",
@@ -9,7 +12,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          <SiteNav />
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

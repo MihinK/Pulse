@@ -1,19 +1,29 @@
 import { Injectable } from "@nestjs/common";
+import { EntityManager } from "@mikro-orm/postgresql";
 import { DependencyCheck } from "../application/dependency-check";
 import { DependencyStatus } from "../domain/health-status";
 
 /**
- * Sprint 1 placeholder: always reports UP, since the database connection
- * itself is not wired up yet (that lands with MikroORM in sprint 2). Kept
- * as its own class, behind the same {@link DependencyCheck} interface the
- * real implementation will use, so `HealthCheckService` and its tests do
- * not change when the real check is dropped in.
+ * A lightweight `select 1` against the same connection pool the rest of the API uses. Runs
+ * outside any request transaction (this route is `@Public()`, not behind `TenancyInterceptor`),
+ * which is fine — it touches no RLS-protected table.
  */
 @Injectable()
 export class DatabaseDependencyCheck implements DependencyCheck {
   public readonly name = "database";
 
+  public constructor(private readonly em: EntityManager) {}
+
   public async check(): Promise<DependencyStatus> {
-    return Promise.resolve({ name: this.name, state: "UP", detail: "not yet wired (sprint 2)" });
+    try {
+      await this.em.getConnection().execute("select 1");
+      return { name: this.name, state: "UP" };
+    } catch (error) {
+      return {
+        name: this.name,
+        state: "DOWN",
+        detail: error instanceof Error ? error.message : "unknown error",
+      };
+    }
   }
 }

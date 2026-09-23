@@ -9,7 +9,9 @@ module.exports = {
     "!**/*.spec.ts",
     "!**/*.module.ts",
     "!main.ts",
-    "!**/health.tokens.ts",
+    "!mikro-orm.config.ts",
+    "!**/*.tokens.ts",
+    "!**/migrations/**",
   ],
   coverageDirectory: "../coverage",
   coverageThreshold: {

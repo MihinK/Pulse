@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests (90% coverage gate)
+        run: pnpm test:coverage
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            apps/api/coverage
+            apps/web/coverage
+            packages/shared/coverage
+          retention-days: 14
+
+      # Docker is preinstalled and running on GitHub-hosted ubuntu runners, so Testcontainers
+      # works with no extra setup. This is the suite that proves Row-Level Security itself
+      # (ADR-003), not just the application code around it — see
+      # apps/api/test/tenancy.e2e-spec.ts.
+      - name: API integration/API-level tests (Testcontainers)
+        run: pnpm --filter @pulse/api test:e2e
