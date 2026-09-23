@@ -14,7 +14,7 @@ pnpm --filter @pulse/api test:coverage
 pnpm --filter @pulse/web test:coverage
 
 # API integration/API-level e2e tests (boots a real Nest app in-process against a real
-# Postgres and Redis via Testcontainers — requires Docker)
+# Postgres, Redis, and (sprint 4) MinIO via Testcontainers — requires Docker)
 pnpm --filter @pulse/api test:e2e
 ```
 
@@ -57,9 +57,12 @@ if a file could have a bug, it's in the coverage count.
 Repository adapters, controllers and DTOs are covered twice, once by unit tests (with fakes/mocks,
 counted in the gate) and once by the e2e suite (against a real, RLS-enforcing Postgres, not
 counted but exercising the real thing) — see `apps/api/test/tenancy.e2e-spec.ts` (cross-org
-isolation) and `apps/api/test/applications-api.e2e-spec.ts` (sprint 3: the same isolation proof
+isolation), `apps/api/test/applications-api.e2e-spec.ts` (sprint 3: the same isolation proof
 for applications/runs, plus the outbox → BullMQ → worker pipeline end-to-end against a real Redis
-and a local fixture HTTP server — never the internet) in particular.
+and a local fixture HTTP server — never the internet), and
+`apps/api/test/documents-api.e2e-spec.ts` (sprint 4: upload → `PENDING` → real worker parse →
+`READY` → endpoint list, for all three supported formats, against a real MinIO, plus carry-over
+and checksum-dedup on re-upload) in particular.
 
 ## Test doubles
 

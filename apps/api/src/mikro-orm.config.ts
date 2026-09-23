@@ -11,6 +11,8 @@ import { CheckRun } from "./modules/applications/domain/check-run.entity";
 import { CheckResult } from "./modules/applications/domain/check-result.entity";
 import { OutboxEntry } from "./modules/applications/domain/outbox-entry.entity";
 import { AuditLog } from "./modules/applications/domain/audit-log.entity";
+import { ApiDocument } from "./modules/documents/domain/api-document.entity";
+import { Endpoint } from "./modules/documents/domain/endpoint.entity";
 
 /**
  * A function, not a precomputed constant: `app.module.ts` calls this from inside
@@ -41,6 +43,8 @@ export function buildMikroOrmOptions(user: string, password: string): Options {
       CheckResult,
       OutboxEntry,
       AuditLog,
+      ApiDocument,
+      Endpoint,
     ],
     extensions: [Migrator],
     migrations: {

@@ -16,6 +16,11 @@ vi.mock("../../lib/applications-api", async () => {
   return { ...actual, getApplication: vi.fn(), listRuns: vi.fn(), startManualRun: vi.fn() };
 });
 
+vi.mock("../../lib/documents-api", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/documents-api")>("../../lib/documents-api");
+  return { ...actual, listDocuments: vi.fn().mockResolvedValue([]) };
+});
+
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: pushMock }),

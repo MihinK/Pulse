@@ -6,10 +6,10 @@
   "setupFiles": ["<rootDir>/setup-env.ts"],
   "transform": {
     "^.+\\.ts$": "ts-jest",
-    "\\.pnpm/(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config)@.+\\.js$": "<rootDir>/babel-transformer.cjs"
+    "\\.pnpm/(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config|@apidevtools\\+json-schema-ref-parser)@.+\\.m?js$": "<rootDir>/babel-transformer.cjs"
   },
   "transformIgnorePatterns": [
-    "\\.pnpm/(?!(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config)@)"
+    "\\.pnpm/(?!(@nestjs\\+bullmq|@nestjs\\+schedule|@nestjs\\+bull-shared|@nestjs\\+config|@apidevtools\\+json-schema-ref-parser)@)"
   ],
   "testTimeout": 30000,
   "forceExit": true

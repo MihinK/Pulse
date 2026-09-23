@@ -1,8 +1,8 @@
 # Data model
 
 Full schema context lives in the [technical plan](./02-technical-plan.md), section 3. This page
-tracks what's actually implemented: sprint 2's identity/tenancy tables, and sprint 3's
-applications/checks tables.
+tracks what's actually implemented: sprint 2's identity/tenancy tables, sprint 3's
+applications/checks tables, and sprint 4's API document/endpoint tables.
 
 ## Conventions
 
@@ -112,7 +112,7 @@ through `applications` (see below).
 | `id`              | uuid, PK       |                                                                     |
 | `organization_id` | uuid           | FK to `organizations`, not null.                                   |
 | `application_id`  | uuid           | FK to `applications`, not null.                                   |
-| `api_document_id` | uuid, null     | Column exists per the full data model, unused until sprint 5.      |
+| `api_document_id` | uuid, null     | FK to `api_documents` (sprint 4). Column exists per the full data model; `RunCheckService` doesn't set it until sprint 5's endpoint checks. |
 | `trigger`         | varchar(20)    | `MANUAL` \| `SCHEDULED` — only `MANUAL` is produced this sprint.   |
 | `triggered_by`    | uuid, null     | FK to `users`; null for a (future) scheduled run.                  |
 | `status`          | varchar(20)    | `QUEUED` \| `RUNNING` \| `COMPLETED` \| `FAILED` \| `CANCELLED`.    |
@@ -130,7 +130,7 @@ exactly; RLS scopes this table transitively through `check_runs`.
 | ---------------- | ------------- | --------------------------------------------------------------------- |
 | `id`             | uuid, PK       |                                                                    |
 | `check_run_id`   | uuid           | FK to `check_runs`, not null.                                     |
-| `endpoint_id`    | uuid, null     | Column exists per the full data model, unused until sprint 5.     |
+| `endpoint_id`    | uuid, null     | No FK constraint yet (unlike `check_runs.api_document_id`) — column exists per the full data model, unused until sprint 5's endpoint checks. |
 | `method`         | varchar(10)    | Default `GET`.                                                    |
 | `url`            | text           |                                                                    |
 | `status_code`, `response_ms` | int, null | Absent when the probe never got a response at all.          |
@@ -167,6 +167,51 @@ Append-only. This sprint writes one row on application create; there is no viewe
 | `before`, `after` | jsonb, null  | Snapshots, where relevant.                |
 | `at`              | timestamptz  |                                            |
 
+## Tables (sprint 4: API documents)
+
+### `api_documents`
+
+No `organization_id` column — matches the technical plan's data model exactly; RLS scopes it
+transitively through `applications` (one hop, see below).
+
+| Column            | Type          | Notes                                                              |
+| ----------------- | ------------- | ---------------------------------------------------------------------- |
+| `id`              | uuid, PK       |                                                                     |
+| `application_id`  | uuid           | FK to `applications`, not null.                                   |
+| `format`          | varchar(20)    | `OPENAPI_3` \| `SWAGGER_2` \| `POSTMAN_V21`.                       |
+| `spec_version`    | text, null     | The spec's own declared version (e.g. `"3.0.1"`) — only known once the worker parses it; `null` while `PENDING`. |
+| `version_no`      | int            | Pulse's own per-application upload counter — distinct from `spec_version`. Unique with `application_id`. |
+| `storage_key`     | text           | Key into object storage (`ObjectStorage`/`S3CompatibleStorage`) for the raw uploaded file. |
+| `checksum`        | text           | SHA-256 of the raw upload — an identical re-upload dedupes instead of creating a new version. |
+| `is_active`       | boolean        | At most one `true` row per `application_id` (partial unique index, not a plain unique constraint — see below). Only flips to `true` once the worker reaches `READY`. |
+| `status`          | varchar(20)    | `PENDING` \| `READY` \| `FAILED` — not in the technical plan's literal column list, added deliberately per the security table's "parsing in the worker" requirement (see [features/api-document-upload.md](./features/api-document-upload.md)). |
+| `failure_reason`  | text, null     | Set when `status = FAILED` (e.g. an external `$ref`, a schema violation).      |
+| `uploaded_by`     | uuid           | FK to `users`.                                                      |
+| `created_at`/`updated_at`/`version` | —  | see Conventions                                                    |
+
+`api_documents_one_active_per_application`: a **partial** unique index —
+`UNIQUE (application_id) WHERE is_active` — deliberately not a plain unique constraint on
+`(application_id, is_active)`, which would also forbid more than one *inactive* row per
+application. "At most one active version" only needs to hold among active rows.
+
+### `endpoints`
+
+No `organization_id` **or** `application_id` column — RLS scopes it transitively through
+`api_documents` then `applications` (two hops, see below).
+
+| Column               | Type          | Notes                                                              |
+| -------------------- | ------------- | ---------------------------------------------------------------------- |
+| `id`                 | uuid, PK       |                                                                     |
+| `api_document_id`    | uuid           | FK to `api_documents`, not null. Unique with `method`+`path`.     |
+| `method`, `path`     | varchar(10), text |                                                                 |
+| `operation_id`       | text, null     | From the spec, where present.                                     |
+| `expected_statuses`  | int[], null    | Every 2xx/3xx status the spec's `responses` object declares for this operation. |
+| `response_schema`    | jsonb, null    | The success response's JSON schema, where present.                 |
+| `sample_params`, `sample_body` | jsonb, null | Editable via `PATCH /endpoints/:id`; carried over from the previous version's matching endpoint (same `method`+`path`) on re-upload. |
+| `included`           | boolean        | Default `true`. Carried over on re-upload like the sample fields.  |
+| `write_enabled`, `write_confirmed_by`, `write_confirmed_at`, `allow_in_schedule` | —, null, null, — | Sprint 5's write-method confirmation. Columns exist now so that sprint needs no schema migration; this sprint never sets them. |
+| `created_at`/`updated_at`/`version` | —   | see Conventions                                                    |
+
 ## Row-Level Security (ADR-003)
 
 Every table above has RLS enabled. Tables that carry `organization_id` directly
@@ -181,9 +226,9 @@ USING (
 ```
 
 Tables with no `organization_id` column of their own (`refresh_tokens`, `auth_configs`,
-`check_results`) scope transitively instead — `refresh_tokens` through `users` on `user_id`,
-`auth_configs` through `applications` on `application_id`, `check_results` through `check_runs`
-on `check_run_id`:
+`check_results`, `api_documents`) scope transitively instead — `refresh_tokens` through `users` on
+`user_id`, `auth_configs` and `api_documents` through `applications` on `application_id`,
+`check_results` through `check_runs` on `check_run_id`:
 
 ```sql
 USING (
@@ -195,6 +240,26 @@ USING (
   )
 )
 ```
+
+`endpoints` (sprint 4) has neither `organization_id` nor `application_id` — it scopes through
+*two* hops, `api_documents` then `applications`:
+
+```sql
+USING (
+  current_setting('app.bypass_rls', true) = 'true'
+  OR EXISTS (
+    SELECT 1 FROM "api_documents" ad
+    JOIN "applications" a ON a."id" = ad."application_id"
+    WHERE ad."id" = "endpoints"."api_document_id"
+      AND a."organization_id" = NULLIF(current_setting('app.current_org_id', true), '')::uuid
+  )
+)
+```
+
+This is why `EndpointService.listByDocument`/`DocumentEndpointsController` independently confirm
+the `ApiDocument` is visible before listing its endpoints (the same "confirm the parent is
+visible first" pattern `OrganizationUsersController` established in sprint 2) — without it, an
+invisible document's endpoint list would come back `200 []` instead of `404`.
 
 Both session variables are set once per request by `TenancyInterceptor`
 (`apps/api/src/common/auth/tenancy.interceptor.ts`), inside the transaction
@@ -225,6 +290,11 @@ every policy above a silent no-op.
 3. `Migration20260923000003_CreateApplicationTables` — the six applications/checks tables.
 4. `Migration20260923000004_EnableApplicationRowLevelSecurity` — grants `pulse_app` access and
    creates the policies for those six tables (the role itself already exists from migration 2).
+5. `Migration20260923000005_CreateDocumentTables` — `api_documents`, `endpoints`, the partial
+   unique index, and the `check_runs.api_document_id` FK (a plain nullable column since sprint 3,
+   since `api_documents` didn't exist yet).
+6. `Migration20260923000006_EnableDocumentRowLevelSecurity` — grants `pulse_app` access and
+   creates the one-hop (`api_documents`) and two-hop (`endpoints`) policies.
 
 Run with `pnpm --filter @pulse/api migration:up` (reads `DB_MIGRATION_USER`/`DB_MIGRATION_PASSWORD`
 from the environment — the superuser, default `pulse`/matches `docker-compose.yml`). The running

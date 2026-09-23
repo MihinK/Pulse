@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConfigService } from "@nestjs/config";
 import { MikroOrmModule } from "@mikro-orm/nestjs";
 import { BullModule } from "@nestjs/bullmq";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -50,16 +50,7 @@ import {
     MikroOrmModule.forFeature([Application, AuthConfig, CheckRun, CheckResult, OutboxEntry, AuditLog]),
     IdentityModule,
     ScheduleModule.forRoot(),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>("REDIS_HOST", "localhost"),
-          port: Number(config.get<string>("REDIS_PORT", "6379")),
-        },
-      }),
-    }),
+    // Connection config is registered once, in AppModule — see its comment.
     BullModule.registerQueue({ name: CHECK_RUNS_QUEUE }),
   ],
   controllers: [ApplicationsController, ApplicationRunsController, RunsController],
@@ -90,5 +81,10 @@ import {
       inject: [ConfigService],
     },
   ],
+  // `documents` (sprint 4) reuses the `Application` entity's owning service (the same
+  // "confirm the parent is visible" 404-not-403 pattern `ApplicationRunsController` already
+  // uses), the shared outbox (ADR-002 — see `outbox-kinds.ts`), and `NetworkPolicy` for its own
+  // SSRF-safe URL-import fetch, rather than duplicating any of the three.
+  exports: [ApplicationService, OUTBOX_REPOSITORY, NETWORK_POLICY],
 })
 export class ApplicationsModule {}

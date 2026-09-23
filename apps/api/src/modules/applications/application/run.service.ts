@@ -6,6 +6,7 @@ import { CheckRun } from "../domain/check-run.entity";
 import { CheckResult } from "../domain/check-result.entity";
 import { CheckTrigger } from "../domain/check-trigger.enum";
 import { OutboxEntry } from "../domain/outbox-entry.entity";
+import { RUN_QUEUED_KIND } from "../domain/outbox-kinds";
 import { CHECK_RUN_REPOSITORY, CHECK_RESULT_REPOSITORY, OUTBOX_REPOSITORY } from "../applications.tokens";
 import type { CheckRunRepository } from "./ports/check-run-repository";
 import type { CheckResultRepository } from "./ports/check-result-repository";
@@ -32,7 +33,7 @@ export class RunService {
   ): Promise<CheckRun> {
     const run = new CheckRun(organization, application, CheckTrigger.MANUAL, triggeredBy);
     await this.checkRuns.save(run);
-    await this.outbox.save(new OutboxEntry(organization, "run.queued", { checkRunId: run.id }));
+    await this.outbox.save(new OutboxEntry(organization, RUN_QUEUED_KIND, { checkRunId: run.id }));
     return run;
   }
 

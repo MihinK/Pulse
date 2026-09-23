@@ -1,4 +1,4 @@
-# Architecture (sprint 3 snapshot)
+# Architecture (sprint 4 snapshot)
 
 Full architecture detail lives in the [technical plan](./02-technical-plan.md), section 2. This
 page tracks what's actually built so far.
@@ -8,8 +8,8 @@ page tracks what's actually built so far.
 ```
 pulse/
 ├── apps/
-│   ├── api/          # NestJS API + worker (in-process) — health, identity/tenancy, applications/checks
-│   └── web/          # Next.js frontend — auth pages, platform admin, org people, applications/runs
+│   ├── api/          # NestJS API + worker (in-process) — health, identity/tenancy, applications/checks, API documents
+│   └── web/          # Next.js frontend — auth pages, platform admin, org people, applications/runs/documents/endpoints
 ├── packages/
 │   └── shared/        # Clock, Formatter, shared enums — used by both apps
 ├── docs/               # this folder
@@ -85,8 +85,38 @@ is a new `infrastructure/` class registered in `applications.module.ts`, not a c
 those four services (Open/Closed) — the exact same shape the [health module](#the-health-module-as-a-worked-example-of-the-layering)
 demonstrates at a smaller scale.
 
+## The documents module (sprint 4)
+
+`apps/api/src/modules/documents/` — full detail in [04-data-model.md](./04-data-model.md),
+[07-security.md](./07-security.md), and
+[features/api-document-upload.md](./features/api-document-upload.md):
+
+```
+apps/api/src/modules/documents/
+├── domain/           # ApiDocument, Endpoint (MikroORM entities with behaviour — ADR-002)
+├── application/       # DocumentService, EndpointService, DocumentParseService, and their ports/
+├── infrastructure/    # DefaultSpecFormatDetector, OpenApi3Parser/Swagger2Parser/PostmanV21Parser, SpecParserFactory, S3CompatibleStorage, UndiciContentFetcher, BullMqDocumentQueue, DocumentOutboxRelay, ParseDocumentProcessor, MikroORM repo adapters
+└── presentation/       # DocumentsController, DocumentEndpointsController, EndpointsController
+```
+
+Imports `ApplicationsModule` and `IdentityModule` rather than duplicating anything they already
+provide: `ApplicationService` (the "confirm the parent is visible" 404-not-403 pattern),
+`OUTBOX_REPOSITORY` (the same shared `outbox` table applications' pipeline uses, ADR-002),
+`NETWORK_POLICY` (reused as-is for the URL-import SSRF defense), and `ProfileService`. It brings
+its own BullMQ queue (`document-parsing`) and its own `@Interval` outbox relay
+(`DocumentOutboxRelay`) rather than sharing `applications`' `check-runs` queue — BullMQ doesn't
+support two independent `@Processor` classes safely sharing one queue name, so the shared `outbox`
+table is scoped by `kind` (`"run.queued"` vs `"document.uploaded"`) and each module relays its own
+kind to its own queue.
+
+`SpecParserFactory` is infrastructure, not application — the same reason `AuthStrategyFactory` is:
+it's the one place allowed to know every concrete `SpecParser` implementation, so a fourth spec
+format later is a new parser class registered there, not a change to `DocumentParseService`
+(Open/Closed).
+
 ## What's still a placeholder
 
-API documents, endpoint checks, `OAUTH2_CC`/`LOGIN_FLOW` auth, write-method confirmation,
-scheduled execution, reports, alerts — lands sprint 4 onward per the
+Endpoint checks (running a check against a parsed endpoint, not just an application's `baseUrl`),
+`OAUTH2_CC`/`LOGIN_FLOW` auth, write-method confirmation, scheduled execution, reports, alerts —
+lands sprint 5 onward per the
 [technical plan's sprint plan](./02-technical-plan.md#9-sprint-plan).

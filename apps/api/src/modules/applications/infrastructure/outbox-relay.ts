@@ -4,6 +4,7 @@ import { EntityManager } from "@mikro-orm/postgresql";
 import { OUTBOX_REPOSITORY, QUEUE } from "../applications.tokens";
 import type { OutboxRepository } from "../application/ports/outbox-repository";
 import type { Queue } from "../application/ports/queue";
+import { RUN_QUEUED_KIND } from "../domain/outbox-kinds";
 import { runWithBypassRls } from "./bypass-rls";
 
 const POLL_INTERVAL_MS = 2000;
@@ -28,7 +29,7 @@ export class OutboxRelay {
   @Interval(POLL_INTERVAL_MS)
   public async relay(): Promise<void> {
     await runWithBypassRls(this.em, async () => {
-      const entries = await this.outbox.findUnprocessed(BATCH_SIZE);
+      const entries = await this.outbox.findUnprocessed(BATCH_SIZE, RUN_QUEUED_KIND);
       for (const entry of entries) {
         await this.queue.enqueue(entry.kind, entry.payload);
         entry.markProcessed(new Date());

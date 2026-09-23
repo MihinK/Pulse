@@ -8,6 +8,7 @@ import { AuthGate } from "../../components/auth-gate";
 import { useAuth } from "../../lib/auth-context";
 import { StatusBadge } from "../../components/status-badge";
 import { getApplication, listRuns, startManualRun } from "../../lib/applications-api";
+import { DocumentsSection } from "./documents-section";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -105,6 +106,8 @@ function ApplicationDetailContent(): JSX.Element {
           ))}
         </TableBody>
       </Table>
+
+      <DocumentsSection applicationId={id} />
     </div>
   );
 }

@@ -10,8 +10,8 @@ export class MikroOrmOutboxRepository implements OutboxRepository {
     @InjectRepository(OutboxEntry) private readonly repo: EntityRepository<OutboxEntry>,
   ) {}
 
-  public findUnprocessed(limit: number): Promise<OutboxEntry[]> {
-    return this.repo.find({ processedAt: null }, { orderBy: { createdAt: "asc" }, limit });
+  public findUnprocessed(limit: number, kind: string): Promise<OutboxEntry[]> {
+    return this.repo.find({ processedAt: null, kind }, { orderBy: { createdAt: "asc" }, limit });
   }
 
   public async save(entry: OutboxEntry): Promise<void> {

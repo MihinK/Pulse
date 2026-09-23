@@ -56,6 +56,10 @@ dev. Two things worth knowing before you touch them:
 - `PLATFORM_OWNER_EMAIL`/`PLATFORM_OWNER_PASSWORD` seed the first Platform Owner account on boot
   (`PulseOwnerSeeder`) if none exists yet — this is how you get your first login. Change the
   password before any boot that isn't purely local/throwaway.
+- `STORAGE_*` (sprint 4) points `S3CompatibleStorage` at the MinIO container from step 2 — the
+  example defaults already match `docker-compose.yml`'s MinIO credentials
+  (`pulse`/`pulse_dev_password`). The bucket (`STORAGE_BUCKET`, default `pulse-documents`) is
+  created automatically on API boot if it doesn't already exist.
 
 ## 4. Run migrations
 
@@ -157,9 +161,18 @@ of the same `dist/main.js` process.
   [07-security.md](./07-security.md#the-table-owner-gotcha).
 - **`pnpm --filter @pulse/api test:e2e` hangs or fails to connect**: Docker needs to be *running*,
   not just installed (`docker version` should show a `Server` block, not just `Client`). Every
-  e2e suite boots the full `AppModule`, which needs both a real Postgres and a real Redis
-  (BullMQ) to shut down cleanly, even for suites that don't touch applications/checks directly —
-  see `apps/api/test/support/redis-test-db.ts`'s comment for why.
+  e2e suite boots the full `AppModule`, which needs a real Postgres, a real Redis (BullMQ), and
+  (sprint 4) a real MinIO — `S3CompatibleStorage`'s `onModuleInit` tries to reach real object
+  storage even for suites that never touch documents — to boot and shut down cleanly. See
+  `apps/api/test/support/redis-test-db.ts`'s comment for why this generalizes past whichever
+  suite first needed the dependency.
+- **A full local e2e run (`pnpm --filter @pulse/api test:e2e`, every suite at once) flakes with an
+  unrelated 401/timeout**: each suite starts its own Postgres + Redis + MinIO Testcontainers: five
+  suites run concurrently is eleven-plus containers competing for the same Docker daemon, which
+  can starve one enough to cause a spurious failure unrelated to the change you're testing. Rerun
+  the one failing suite in isolation (`npx jest --config ./test/jest-e2e.json path/to/file.e2e-spec.ts`)
+  before assuming it's a real regression; `--runInBand` also helps by not running suites in
+  parallel workers.
 - **A single e2e test run gets `429 Too Many Requests` partway through**: the login endpoint's
   brute-force throttle (5/min) and the app-wide throttle (60/min) are real production limits that
   a full e2e suite's request volume can exceed. `apps/api/test/setup-env.ts` already raises both

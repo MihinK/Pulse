@@ -4,6 +4,7 @@ import { Organization } from "../../identity/domain/organization.entity";
 import { OutboxEntry } from "../domain/outbox-entry.entity";
 import type { OutboxRepository } from "../application/ports/outbox-repository";
 import type { Queue } from "../application/ports/queue";
+import { RUN_QUEUED_KIND } from "../domain/outbox-kinds";
 
 function buildEm(): EntityManager {
   const forkedEm = {
@@ -30,6 +31,7 @@ describe("OutboxRelay", () => {
     await relay.relay();
 
     expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(outbox.findUnprocessed).toHaveBeenCalledWith(20, RUN_QUEUED_KIND);
   });
 
   it("enqueues each unprocessed entry and marks it processed", async () => {

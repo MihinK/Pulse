@@ -29,10 +29,10 @@ describe("MikroOrmOutboxRepository", () => {
     const { repository, underlying } = build();
     (underlying.find as jest.Mock).mockResolvedValue([entry]);
 
-    const results = await repository.findUnprocessed(10);
+    const results = await repository.findUnprocessed(10, "run.queued");
 
     expect(underlying.find).toHaveBeenCalledWith(
-      { processedAt: null },
+      { processedAt: null, kind: "run.queued" },
       { orderBy: { createdAt: "asc" }, limit: 10 },
     );
     expect(results).toEqual([entry]);

@@ -4,10 +4,12 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MikroOrmModule } from "@mikro-orm/nestjs";
 import { defineConfig } from "@mikro-orm/postgresql";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { BullModule } from "@nestjs/bullmq";
 import { buildMikroOrmOptions } from "./mikro-orm.config";
 import { HealthModule } from "./modules/health/health.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { ApplicationsModule } from "./modules/applications/applications.module";
+import { DocumentsModule } from "./modules/documents/documents.module";
 import { JwtAuthGuard } from "./common/auth/jwt-auth.guard";
 import { RolesGuard } from "./common/auth/roles.guard";
 
@@ -40,9 +42,23 @@ import { RolesGuard } from "./common/auth/roles.guard";
           ),
         ),
     }),
+    // Registered once, here, so every feature module's own `BullModule.registerQueue(...)` (each
+    // gets its own named queue — see ApplicationsModule/DocumentsModule) shares one Redis
+    // connection instead of each module needing its own `forRootAsync`.
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>("REDIS_HOST", "localhost"),
+          port: Number(config.get<string>("REDIS_PORT", "6379")),
+        },
+      }),
+    }),
     HealthModule,
     IdentityModule,
     ApplicationsModule,
+    DocumentsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

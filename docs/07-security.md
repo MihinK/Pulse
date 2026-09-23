@@ -2,8 +2,8 @@
 
 Full context: [technical plan](./02-technical-plan.md) section 8.1, requirements section 3.4,
 [ADR-003](./adr/003-multitenancy-row-level-security.md). This page tracks what's actually
-implemented: sprint 2's authentication and multi-tenant isolation, and sprint 3's SSRF protection
-and target-credential encryption.
+implemented: sprint 2's authentication and multi-tenant isolation, sprint 3's SSRF protection and
+target-credential encryption, and sprint 4's malicious-spec-file defenses.
 
 ## Authentication
 
@@ -109,6 +109,35 @@ independently testable:
 A blocked request surfaces as a normal `FAILED` check result (`failure_reason`: "Address ... is not
 allowed by network policy"), not a 500 — from the caller's point of view it's just a check that
 didn't pass, same as a timeout or a non-2xx response.
+
+## Malicious spec files
+
+An uploaded API document (OpenAPI 3, Swagger 2, or a Postman v2.1 collection) is untrusted input —
+the technical plan's threat table (section 8) calls out four specific defenses, all implemented in
+`apps/api/src/modules/documents/`:
+
+- **10 MB limit** — enforced twice: `FileInterceptor`'s `limits.fileSize` for multipart uploads
+  (rejected by multer before the handler even runs), and a byte-counting abort mid-stream for URL
+  imports (`UndiciContentFetcher`, `ContentTooLargeError`) — not just a post-hoc check after the
+  whole file has already downloaded.
+- **Safe YAML loading** — `js-yaml`'s safe-by-default `load()` (`DefaultSpecFormatDetector`); JSON
+  is valid YAML, so one safe parser handles both upload shapes.
+- **No external `$ref` in Cloud edition** — `assertNoExternalRefs` (shared by `OpenApi3Parser` and
+  `Swagger2Parser`) walks the raw, pre-dereference document for any `$ref` that isn't a
+  same-document JSON pointer (`#/...`) and rejects the whole document if it finds one. This runs
+  *before* `swagger-parser`'s own `resolve.external: false` option, because that option only
+  *ignores* external refs (leaves them unresolved) rather than rejecting the document outright —
+  ignoring isn't the same as refusing untrusted external input.
+- **Parsing in the worker, with a time limit** — validation/dereferencing/normalisation never runs
+  inline in the upload request; it's deferred to `ParseDocumentProcessor` (BullMQ), the same
+  outbox-relay pattern as sprint 3's check runs. See
+  [features/api-document-upload.md](./features/api-document-upload.md) for the full pipeline.
+  (BullMQ's own job-level timeout provides the time limit; a spec that somehow hangs the worker
+  fails that one job without blocking the API.)
+
+A document that fails validation for any reason — malformed, an external `$ref`, or a genuine
+parse error — is marked `FAILED` with a `failure_reason`, never a 500, and never activated: the
+application's previously-active document (if any) stays active and visible.
 
 ## Secret encryption
 

@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import request from "supertest";
 import { startTestDatabase, type TestDatabase } from "./support/postgres-test-db";
 import { startTestRedis, type TestRedis } from "./support/redis-test-db";
+import { startTestMinio, type TestMinio } from "./support/minio-test-storage";
 import { createTestApp } from "./support/test-app";
 
 interface SessionBody {
@@ -18,6 +19,7 @@ interface SessionBody {
 describe("Identity API (e2e)", () => {
   let db: TestDatabase;
   let redis: TestRedis;
+  let minio: TestMinio;
   let app: INestApplication;
   let server: Server;
 
@@ -26,6 +28,7 @@ describe("Identity API (e2e)", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     redis = await startTestRedis();
+    minio = await startTestMinio();
     process.env.JWT_ACCESS_SECRET = "test-secret";
     process.env.PLATFORM_OWNER_EMAIL = platformOwner.email;
     process.env.PLATFORM_OWNER_PASSWORD = platformOwner.password;
@@ -38,6 +41,7 @@ describe("Identity API (e2e)", () => {
     await app.close();
     await db.stop();
     await redis.stop();
+    await minio.stop();
   }, 60_000);
 
   async function loginAs(email: string, password: string): Promise<string> {
